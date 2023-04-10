@@ -1,0 +1,171 @@
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Random;
+
+public class FileSystemSimulator {
+    // constants
+    private static final int DISK_SIZE = 1024; // in blocks
+    private static final int BLOCK_SIZE = 16; // in bytes
+    private static final int SIMULATION_TIME = 20; // in seconds
+    
+    // variables
+    private int[] disk;
+    private Map<String, File> fileTable;
+    private int[] fat;
+    private Random random;
+    
+    public FileSystemSimulator() {
+        disk = new int[DISK_SIZE];
+        fileTable = new HashMap<>();
+        fat = new int[DISK_SIZE];
+        fat[0] = -1; // first block is reserved for root directory
+        random = new Random();
+    }
+    
+    public void runSimulation() {
+        for (int time = 0; time < SIMULATION_TIME; time++) {
+            // simulate employee behavior
+            simulateEmployeeBehavior();
+            
+            // report statistics
+            int fragmentation = calculateFragmentation();
+            int wastedBlocks = calculateWastedBlocks();
+            System.out.println("Time: " + time + ", Fragmentation: " + fragmentation + ", Wasted Blocks: " + wastedBlocks);
+        }
+    }
+    
+    private void simulateEmployeeBehavior() {
+        // simulate file creation, editing, renaming, moving, and deletion
+        int numFilesToCreate = random.nextInt(5); // create up to 4 files
+        for (int i = 0; i < numFilesToCreate; i++) {
+            createFile();
+        }
+        
+        int numFilesToDelete = random.nextInt(fileTable.size()); // delete up to all files
+        for (int i = 0; i < numFilesToDelete; i++) {
+            deleteFile();
+        }
+        
+        int numFilesToRename = random.nextInt(fileTable.size()); // rename up to all files
+        for (int i = 0; i < numFilesToRename; i++) {
+            renameFile();
+        }
+    }
+    
+    private void createFile() {
+        int fileSize = random.nextInt(10) + 1; // file size between 1 and 10 blocks
+        String fileName = "file" + fileTable.size();
+        int startBlock = allocateBlocks(fileSize);
+        if (startBlock == -1) {
+            System.out.println("Unable to create file " + fileName + ": not enough free space");
+            return;
+        }
+        File file = new File(fileName, startBlock, fileSize);
+        fileTable.put(fileName, file);
+        System.out.println("Created file " + fileName + " (size " + fileSize + " blocks, starting block " + startBlock + ")");
+    }
+    
+    private int allocateBlocks(int numBlocks) {
+        // implementation of contiguous allocation
+        for (int i = 0; i < DISK_SIZE; i++) {
+            int j = i;
+            int freeBlocks = 0;
+            while (j < DISK_SIZE && disk[j] == 0) {
+                freeBlocks++;
+                j++;
+                if (freeBlocks == numBlocks) {
+                    for (int k = i; k < j; k++) {
+                        disk[k] = 1;
+                    }
+                    return i;
+                }
+            }
+        }
+        return -1;
+    }
+    
+    private void deleteFile() {
+        int randomIndex = random.nextInt(fileTable.size());
+        String[] keys = fileTable.keySet().toArray(new String[0]);
+        String fileName = keys[randomIndex];
+        File file = fileTable.get(fileName);
+	  int startBlock = file.getStartBlock();
+	  int numBlocks = file.getNumBlocks();
+	  for (int i = startBlock; i < startBlock + numBlocks; i++) {
+	  disk[i] = 0;
+	  fat[i] = 0;
+   	}
+	fileTable.remove(fileName);
+	System.out.println("Deleted file " + fileName);
+}
+private void renameFile() {
+    int randomIndex = random.nextInt(fileTable.size());
+    String[] keys = fileTable.keySet().toArray(new String[0]);
+    String oldFileName = keys[randomIndex];
+    File file = fileTable.get(oldFileName);
+    String newFileName = "file" + fileTable.size();
+    fileTable.remove(oldFileName);
+    fileTable.put(newFileName, file);
+    file.setFileName(newFileName);
+    System.out.println("Renamed file " + oldFileName + " to " + newFileName);
+}
+
+private int calculateFragmentation() {
+    int numFragments = 0;
+    boolean inFragment = false;
+    for (int i = 0; i < DISK_SIZE; i++) {
+        if (disk[i] == 0) {
+            if (!inFragment) {
+                inFragment = true;
+                numFragments++;
+            }
+        } else {
+            inFragment = false;
+        }
+    }
+    return numFragments;
+}
+
+private int calculateWastedBlocks() {
+    int numWastedBlocks = 0;
+    for (int i = 0; i < DISK_SIZE; i++) {
+        if (disk[i] == 0 && fat[i] == 0) {
+            numWastedBlocks++;
+        }
+    }
+    return numWastedBlocks;
+}
+
+public static void main(String[] args) {
+    FileSystemSimulator fs = new FileSystemSimulator();
+    fs.runSimulation();
+}
+}
+
+class File {
+private String fileName;
+private int startBlock;
+private int numBlocks;
+public File(String fileName, int startBlock, int numBlocks) {
+    this.fileName = fileName;
+    this.startBlock = startBlock;
+    this.numBlocks = numBlocks;
+}
+
+public String getFileName() {
+    return fileName;
+}
+
+public void setFileName(String fileName) {
+    this.fileName = fileName;
+}
+
+public int getStartBlock() {
+    return startBlock;
+}
+
+public int getNumBlocks() {
+    return numBlocks;
+}
+}
